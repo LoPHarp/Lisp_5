@@ -9,7 +9,9 @@
           (format t "~%")
           (dolist (colum colums) (format t "~15A" colum))
           (format t "~%")
-          (dolist (colum colums) (format t "---------------"))
+          (dolist (colum colums)
+            (declare (ignore colum))
+            (format t "---------------"))
           (format t "~%")
 
           (dolist (row rows)
@@ -31,14 +33,15 @@
     (setf (gethash :id ht) (parse-integer (first line)))
     (setf (gethash :name ht) (second line))
     (setf (gethash :type ht) (third line))
-    (setf (gethash :company-id ht))))
+    (setf (gethash :company-id ht) (parse-integer (cadddr line)))))
 
 (defun read-csv (file-hash file-type)
   (let ((ht (make-hash-table :test 'equal)))
   (with-open-file (stream file-hash)
     (do ((line (read-line stream nil) (read-line stream nil)))
         ((null line) ht)
-      (let* ((breaking (uiop:split-string line :separator ","))
+      (let* ((clean-line (string-trim '(#\Space #\Tab #\Return #\Newline) line))
+             (breaking (uiop:split-string clean-line :separator ","))
              (record (case file-type
                        (:companies (company-record breaking))
                        (:spacecrafts (spacecraft-record breaking))))
@@ -47,7 +50,7 @@
 
     (lambda (&key (id nil))
       (cond
-        (id (gethash id ht))
+        (id (pretty-print (gethash id ht)))
         (t (format t "nooo"))))))
 
 
