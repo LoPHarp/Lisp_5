@@ -38,7 +38,7 @@
     (setf (gethash :company-id ht) (parse-integer (cadddr line)))
     ht))
 
-(defun read-csv (file-hash file-type)
+(defun select (file-hash file-type)
   (let ((ht (make-hash-table :test 'equal)))
   (with-open-file (stream file-hash)
     (do ((line (read-line stream nil) (read-line stream nil)))
@@ -78,7 +78,7 @@
             (pretty-print result-rows))))))
       
 (defun modul-test ()
-  (let* ((ht (read-csv "c:/Users/dmanu/portacle/Lisp_5/companies.csv" :companies))
+  (let* ((ht (select "c:/Users/dmanu/portacle/Lisp_5/companies.csv" :companies))
          (data1 (funcall ht :test t))
          (data2 (funcall ht :id 1 :test t))
          (data3 (funcall ht :name "ESA" :test t)))
@@ -93,7 +93,7 @@
         (format t "TEST 3 : TRUE TEST~%")
         (format t "TEST 3 : FALSE TEST~%")))
   
-  (let* ((ht (read-csv "c:/Users/dmanu/portacle/Lisp_5/spacecrafts.csv" :spacecrafts))
+  (let* ((ht (select "c:/Users/dmanu/portacle/Lisp_5/spacecrafts.csv" :spacecrafts))
          (data1 (funcall ht :test t))
          (data2 (funcall ht :id 1 :test t))
          (data3 (funcall ht :name "Starship" :test t)))

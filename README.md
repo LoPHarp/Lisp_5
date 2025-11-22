@@ -18,12 +18,12 @@
 бути розібрані відповідно до типу даних у них. Наприклад, рядок — це просто
 рядок; числові колонки необхідно розібрати як цілі числа або числа з рухомою
 крапкою.  
-3. Розробити функцію select , яка отримує на вхід шлях до файлу з таблицею, а
+3. Розробити функцію `select` , яка отримує на вхід шлях до файлу з таблицею, а
 також якийсь об'єкт, який дасть змогу зчитати записи конкретного типу або
 структури. Це може бути ключ, список з якоюсь допоміжною інформацією, функція і
-т. і. За потреби параметрів може бути кілька. select повертає лямбда-вираз,
+т. і. За потреби параметрів може бути кілька. `select` повертає лямбда-вираз,
 який, в разі виклику, виконує "вибірку" записів з таблиці, шлях до якої було
-передано у select . При цьому лямбда-вираз в якості ключових параметрів може
+передано у `select` . При цьому лямбда-вираз в якості ключових параметрів може
 отримати на вхід значення полів записів таблиці, для того щоб обмежити вибірку
 лише заданими значеннями (виконати фільтрування). Вибірка повертається у
 вигляді списку записів.
@@ -84,7 +84,7 @@
     (setf (gethash :company-id ht) (parse-integer (cadddr line)))
     ht))
 
-(defun read-csv (file-hash file-type)
+(defun select (file-hash file-type)
   (let ((ht (make-hash-table :test 'equal)))
   (with-open-file (stream file-hash)
     (do ((line (read-line stream nil) (read-line stream nil)))
@@ -126,7 +126,7 @@
 ### Тестові набори та утиліти
 ```lisp
 (defun modul-test ()
-  (let* ((ht (read-csv "c:/Users/dmanu/portacle/Lisp_5/companies.csv" :companies))
+  (let* ((ht (select "c:/Users/dmanu/portacle/Lisp_5/companies.csv" :companies))
          (data1 (funcall ht :test t))
          (data2 (funcall ht :id 1 :test t))
          (data3 (funcall ht :name "ESA" :test t)))
@@ -141,7 +141,7 @@
         (format t "TEST 3 : TRUE TEST~%")
         (format t "TEST 3 : FALSE TEST~%")))
   
-  (let* ((ht (read-csv "c:/Users/dmanu/portacle/Lisp_5/spacecrafts.csv" :spacecrafts))
+  (let* ((ht (select "c:/Users/dmanu/portacle/Lisp_5/spacecrafts.csv" :spacecrafts))
          (data1 (funcall ht :test t))
          (data2 (funcall ht :id 1 :test t))
          (data3 (funcall ht :name "Starship" :test t)))
