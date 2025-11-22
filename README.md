@@ -44,13 +44,176 @@
 | Космічні апарати | 1. Компанії<br>2. Космічні апарати | База даних космічних апаратів для зв'язку, дослідження, тощо. |
 ## Лістинг реалізації завдання
 ```lisp
-;;; Лістинг реалізації
+(defun pretty-print (table)
+  (let ((rows (if (listp table) table (list table))))
+    (if (null rows)
+        (format t "Input table\string is empty!~%")
+        (let ((colums '()))
+          (maphash (lambda (key value)
+                     (declare (ignore value))
+                     (push key colums))
+                   (first rows))
+          (setf colums (nreverse colums))
+          (format t "~%")
+          (dolist (colum colums) (format t "~15A" colum))
+          (format t "~%")
+          (dolist (colum colums)
+            (declare (ignore colum))
+            (format t "---------------"))
+          (format t "~%")
+
+          (dolist (row rows)
+            (dolist (col colums)
+              (format t "~15a" (gethash col row)))
+            (format t "~%"))))
+    t))
+
+(defun company-record (line)
+  (let ((ht (make-hash-table :test 'equal)))
+    (setf (gethash :id ht) (parse-integer (first line)))
+    (setf (gethash :name ht) (second line))
+    (setf (gethash :country ht) (third line))
+    (setf (gethash :founder ht) (cadddr line))
+    ht))
+
+(defun spacecraft-record (line)
+  (let ((ht (make-hash-table :test 'equal)))
+    (setf (gethash :id ht) (parse-integer (first line)))
+    (setf (gethash :name ht) (second line))
+    (setf (gethash :type ht) (third line))
+    (setf (gethash :company-id ht) (parse-integer (cadddr line)))
+    ht))
+
+(defun read-csv (file-hash file-type)
+  (let ((ht (make-hash-table :test 'equal)))
+  (with-open-file (stream file-hash)
+    (do ((line (read-line stream nil) (read-line stream nil)))
+        ((null line) ht)
+      (let* ((clean-line (string-trim '(#\Space #\Tab #\Return #\Newline) line))
+             (breaking (uiop:split-string clean-line :separator ","))
+             (record (case file-type
+                       (:companies (company-record breaking))
+                       (:spacecrafts (spacecraft-record breaking))))
+             (record-id (gethash :id record)))
+        (setf (gethash record-id ht) record))))
+
+    (lambda (&rest key)
+      (let ((result-rows '()))
+        (cond
+          ((or (null key) (and (= (length key) 2) (getf key :test)))
+           (maphash (lambda (key value)
+                      (declare (ignore key))
+                      (push value result-rows))
+                    ht))
+          ((getf key :id)
+           (let ((rec (gethash (getf key :id) ht)))
+             (when rec
+               (push rec result-rows))))
+          (t
+           (let ((search-key (first key))
+                 (search-val (second key)))
+             (maphash (lambda (key value)
+                        (declare (ignore key))
+                        (if (equal (gethash search-key value) search-val)
+                            (push value result-rows)))
+                      ht))))
+        (setf result-rows  (nreverse result-rows))
+
+        (if (getf key :test)
+            result-rows
+            (pretty-print result-rows))))))
 ```
 ### Тестові набори та утиліти
 ```lisp
-;;; Лістинг реалізації утилітних тестових функцій та тестових наборів
+(defun pretty-print (table)
+  (let ((rows (if (listp table) table (list table))))
+    (if (null rows)
+        (format t "Input table\string is empty!~%")
+        (let ((colums '()))
+          (maphash (lambda (key value)
+                     (declare (ignore value))
+                     (push key colums))
+                   (first rows))
+          (setf colums (nreverse colums))
+          (format t "~%")
+          (dolist (colum colums) (format t "~15A" colum))
+          (format t "~%")
+          (dolist (colum colums)
+            (declare (ignore colum))
+            (format t "---------------"))
+          (format t "~%")
+
+          (dolist (row rows)
+            (dolist (col colums)
+              (format t "~15a" (gethash col row)))
+            (format t "~%"))))
+    t))
+
+(defun company-record (line)
+  (let ((ht (make-hash-table :test 'equal)))
+    (setf (gethash :id ht) (parse-integer (first line)))
+    (setf (gethash :name ht) (second line))
+    (setf (gethash :country ht) (third line))
+    (setf (gethash :founder ht) (cadddr line))
+    ht))
+
+(defun spacecraft-record (line)
+  (let ((ht (make-hash-table :test 'equal)))
+    (setf (gethash :id ht) (parse-integer (first line)))
+    (setf (gethash :name ht) (second line))
+    (setf (gethash :type ht) (third line))
+    (setf (gethash :company-id ht) (parse-integer (cadddr line)))
+    ht))
+
+(defun read-csv (file-hash file-type)
+  (let ((ht (make-hash-table :test 'equal)))
+  (with-open-file (stream file-hash)
+    (do ((line (read-line stream nil) (read-line stream nil)))
+        ((null line) ht)
+      (let* ((clean-line (string-trim '(#\Space #\Tab #\Return #\Newline) line))
+             (breaking (uiop:split-string clean-line :separator ","))
+             (record (case file-type
+                       (:companies (company-record breaking))
+                       (:spacecrafts (spacecraft-record breaking))))
+             (record-id (gethash :id record)))
+        (setf (gethash record-id ht) record))))
+
+    (lambda (&rest key)
+      (let ((result-rows '()))
+        (cond
+          ((or (null key) (and (= (length key) 2) (getf key :test)))
+           (maphash (lambda (key value)
+                      (declare (ignore key))
+                      (push value result-rows))
+                    ht))
+          ((getf key :id)
+           (let ((rec (gethash (getf key :id) ht)))
+             (when rec
+               (push rec result-rows))))
+          (t
+           (let ((search-key (first key))
+                 (search-val (second key)))
+             (maphash (lambda (key value)
+                        (declare (ignore key))
+                        (if (equal (gethash search-key value) search-val)
+                            (push value result-rows)))
+                      ht))))
+        (setf result-rows  (nreverse result-rows))
+
+        (if (getf key :test)
+            result-rows
+            (pretty-print result-rows))))))
 ```
 ### Тестування
 ```lisp
-;;; Виклик і результат виконання тестів
+CL-USER> (modul-test)
+Tests with the file companies.csv
+TEST 1 : TRUE TEST
+TEST 2 : TRUE TEST
+TEST 3 : TRUE TEST
+Tests with the file spacecrafts.csv
+TEST 1 : TRUE TEST
+TEST 2 : TRUE TEST
+TEST 3 : TRUE TEST
+NIL
 ```
