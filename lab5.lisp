@@ -22,7 +22,8 @@
       (let* ((breaking (uiop:split-string line :separator ","))
              (record (case file-type
                        (:companies (company-record breaking))
-                       (:spacecrafts (spacecraft-record breaking)))))))))
+                       (:spacecrafts (spacecraft-record breaking))))
+             ())))))
 
 
 (read-csv "c:/Users/LoPHarp/portacle/Lisp_5/companies.csv" :companies)
