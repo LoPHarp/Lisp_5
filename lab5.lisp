@@ -22,6 +22,33 @@
             (format t "~%"))))
     t))
 
+(defun save-to-file (file-path records)
+  (with-open-file (stream file-path :direction :output :if-exists :supersede)
+    (when records
+      (let ((keys '()))
+        (maphash (lambda (key value)
+                   (declare (ignore value))
+                   (push key keys))
+                 (first records))
+        (setf keys (nreverse keys))
+        
+        (format stream "~a" (first keys))
+        (dolist (key (cdr keys))
+          (format stream ",~a" key))
+        (format stream "~%")
+
+        (dolist (row records)
+          (let ((values '()))
+            (dolist (key keys)
+              (push (gethash key row) values))
+            (setf values (nreverse values))
+
+            (format stream "~a" (first values))
+            (dolist (value (cdr values))
+              (format stream ",~a" value))
+            (format stream "~%"))))))
+  file-path)
+
 (defun company-record (line)
   (let ((ht (make-hash-table :test 'equal)))
     (setf (gethash :id ht) (parse-integer (first line)))
@@ -51,32 +78,43 @@
              (record-id (gethash :id record)))
         (setf (gethash record-id ht) record))))
 
-    (lambda (&rest key)
-      (let ((result-rows '()))
+    (lambda (&rest keys)
+      (let* ((save-path (getf keys :save))
+             (test-mode (getf keys :test))
+             (query-keys (copy-list keys))
+             (result-rows '()))
+        
+        (remf query-keys :save)
+        (remf query-keys :test)
+
         (cond
-          ((or (null key) (and (= (length key) 2) (getf key :test)))
+          ((null query-keys)
            (maphash (lambda (key value)
                       (declare (ignore key))
                       (push value result-rows))
                     ht))
-          ((getf key :id)
-           (let ((rec (gethash (getf key :id) ht)))
-             (when rec
-               (push rec result-rows))))
+          ((getf query-keys :id)
+           (let ((record (gethash (getf query-keys :id) ht)))
+             (when record (push record result-rows))))
           (t
-           (let ((search-key (first key))
-                 (search-val (second key)))
-             (maphash (lambda (key value)
+           (let ((search-key (first query-keys))
+                 (search-value (second query-keys)))
+             (maphash (lambda (key row-ht)
                         (declare (ignore key))
-                        (if (equal (gethash search-key value) search-val)
-                            (push value result-rows)))
+                        (when (equal (gethash search-key row-ht) search-value)
+                          (push row-ht result-rows)))
                       ht))))
         (setf result-rows  (nreverse result-rows))
 
-        (if (getf key :test)
+        (when save-path
+          (let ((actual-path (if (eq save-path t) "output.csv" save-path)))
+            (save-to-file actual-path result-rows)
+            (format t "Save ~a records to ~a~%" (length result-rows) actual-path)))
+
+        (if test-mode
             result-rows
             (pretty-print result-rows))))))
-      
+         
 (defun modul-test ()
   (let* ((ht (select "c:/Users/dmanu/portacle/Lisp_5/companies.csv" :companies))
          (data1 (funcall ht :test t))
