@@ -68,6 +68,35 @@
             (format t "~%"))))
     t))
 
+(defun save-to-file (file-path records)
+  (with-open-file (stream file-path :direction :output :if-exists :supersede)
+    (when records
+      (let ((keys '()))
+        (maphash (lambda (key value)
+                   (declare (ignore value))
+                   (push key keys))
+                 (first records))
+        (setf keys (nreverse keys))
+
+        (dolist (row records)
+          (let ((values '()))
+            (dolist (key keys)
+              (push (gethash key row) values))
+            (setf values (nreverse values))
+
+            (format stream "~a" (first values))
+            (dolist (value (cdr values))
+              (format stream ",~a" value))
+            (format stream "~%"))))))
+  file-path)
+
+(defun hash-to-alist (ht)
+  (let ((alist '()))
+    (maphash (lambda (k v)
+               (push (cons k v) alist))
+             ht)
+    alist))
+
 (defun company-record (line)
   (let ((ht (make-hash-table :test 'equal)))
     (setf (gethash :id ht) (parse-integer (first line)))
@@ -97,39 +126,57 @@
              (record-id (gethash :id record)))
         (setf (gethash record-id ht) record))))
 
-    (lambda (&rest key)
-      (let ((result-rows '()))
+    (lambda (&rest keys)
+      (let* ((save-path (getf keys :save))
+             (test-mode (getf keys :test))
+             (to-alist (getf keys :alist))
+             (query-keys (copy-list keys))
+             (result-rows '()))
+        
+        (remf query-keys :save)
+        (remf query-keys :test)
+        (remf query-keys :alist)
+
         (cond
-          ((or (null key) (and (= (length key) 2) (getf key :test)))
+          ((null query-keys)
            (maphash (lambda (key value)
                       (declare (ignore key))
                       (push value result-rows))
                     ht))
-          ((getf key :id)
-           (let ((rec (gethash (getf key :id) ht)))
-             (when rec
-               (push rec result-rows))))
+          ((getf query-keys :id)
+           (let ((record (gethash (getf query-keys :id) ht)))
+             (when record (push record result-rows))))
           (t
-           (let ((search-key (first key))
-                 (search-val (second key)))
-             (maphash (lambda (key value)
+           (let ((search-key (first query-keys))
+                 (search-value (second query-keys)))
+             (maphash (lambda (key row-ht)
                         (declare (ignore key))
-                        (if (equal (gethash search-key value) search-val)
-                            (push value result-rows)))
+                        (when (equal (gethash search-key row-ht) search-value)
+                          (push row-ht result-rows)))
                       ht))))
         (setf result-rows  (nreverse result-rows))
 
-        (if (getf key :test)
+        (when save-path
+          (let ((actual-path (if (eq save-path t) "output.csv" save-path)))
+            (save-to-file actual-path result-rows)
+            (format t "Save ~a records to ~a~%" (length result-rows) actual-path)))
+
+        (when to-alist
+          (setf result-rows (mapcar #'hash-to-alist result-rows)))
+        
+        (if (or test-mode to-alist)
             result-rows
             (pretty-print result-rows))))))
 ```
 ### Тестові набори та утиліти
 ```lisp
 (defun modul-test ()
-  (let* ((ht (select "c:/Users/dmanu/portacle/Lisp_5/companies.csv" :companies))
+  (let* ((ht (select "c:/Users/LoPHarp/portacle/Lisp_5/companies.csv" :companies))
          (data1 (funcall ht :test t))
          (data2 (funcall ht :id 1 :test t))
-         (data3 (funcall ht :name "ESA" :test t)))
+         (data3 (funcall ht :name "ESA" :test t))
+         (data4 (funcall ht :id 1 :alist t)))
+    
     (format t "Tests with the file companies.csv~%")
     (if (= (length data1) 5)
         (format t "TEST 1 : TRUE TEST~%")
@@ -139,12 +186,18 @@
         (format t "TEST 2 : FALSE TEST~%"))
     (if (and data3 (equal (gethash :name (first data3)) "ESA"))
         (format t "TEST 3 : TRUE TEST~%")
-        (format t "TEST 3 : FALSE TEST~%")))
+        (format t "TEST 3 : FALSE TEST~%"))
+    (if (and data4
+             (listp (first data4))
+             (equal (cdr (assoc :name (first data4))) "SpaceX"))
+        (format t "TEST 4 : TRUE TEST~%")
+        (format t "TEST 4 : FALSE TEST~%")))
   
-  (let* ((ht (select "c:/Users/dmanu/portacle/Lisp_5/spacecrafts.csv" :spacecrafts))
+  (let* ((ht (select "c:/Users/LoPHarp/portacle/Lisp_5/spacecrafts.csv" :spacecrafts))
          (data1 (funcall ht :test t))
          (data2 (funcall ht :id 1 :test t))
-         (data3 (funcall ht :name "Starship" :test t)))
+         (data3 (funcall ht :name "Starship" :test t))
+         (data4 (funcall ht :id 1 :alist t)))
     (format t "Tests with the file spacecrafts.csv~%")
     (if (= (length data1) 7)
         (format t "TEST 1 : TRUE TEST~%")
@@ -156,7 +209,12 @@
                           (equal (gethash :type (first data3)) "Rocket")
                           (= (gethash :company-id (first data3)) 1))
         (format t "TEST 3 : TRUE TEST~%")
-        (format t "TEST 3 : FALSE TEST~%"))))
+        (format t "TEST 3 : FALSE TEST~%"))
+    (if (and data4
+             (listp (first data4))
+             (equal (cdr (assoc :name (first data4))) "Falcon 9"))
+        (format t "TEST 4 : TRUE TEST~%")
+        (format t "TEST 4 : FALSE TEST~%"))))
 ```
 ### Тестування
 ```lisp
@@ -165,9 +223,11 @@ Tests with the file companies.csv
 TEST 1 : TRUE TEST
 TEST 2 : TRUE TEST
 TEST 3 : TRUE TEST
+TEST 4 : TRUE TEST
 Tests with the file spacecrafts.csv
 TEST 1 : TRUE TEST
 TEST 2 : TRUE TEST
 TEST 3 : TRUE TEST
+TEST 4 : TRUE TEST
 NIL
 ```
